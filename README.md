@@ -28,7 +28,7 @@ and DHT22 temperature-humidity sensor
   
   The circuit:
   
-  NodeMCU Amica (ESP8266)
+    NodeMCU Amica (ESP8266)
   
   Inputs:
   

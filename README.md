@@ -18,7 +18,7 @@ ESP8266 based with local home-assistant.io GUI, 433Mhz transmitter for heater/fa
   
   ----------
   
-  GUi: Locally hosted home assistant
+  GUi: Locally hosted home assistant https://home-assistant.io
   
   ----------
   

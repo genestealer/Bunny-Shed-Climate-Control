@@ -26,7 +26,6 @@
   Notes:
     NodeMCU lED lights to show MQTT conenction.
     ESP lED lights to show WIFI conenction.
-
 ****************************************************/
 
 // Note: Libaries are inluced in "Project Dependencies" file platformio.ini

@@ -1,4 +1,13 @@
 # Bunny-Shed-Climate-Control
+
+## Matching Home Assistant Home Automation Hub Configuration
+
+https://github.com/Genestealer/Home-Assistant-Configuration
+
+
+
+## Code Header Copy
+
 Bunny shed heating controller using ESP8266 NodeMCU, 433Mhz transmitter, MQTT and Home Assistant
 
 Richard Huish 2015-2017

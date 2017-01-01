@@ -1,7 +1,7 @@
 # Bunny-Shed-Climate-Control
 Bunny shed heating controller using ESP8266 NodeMCU, 433Mhz transmitter, MQTT and Home Assistant
 
-Richard Huish 2016
+Richard Huish 2015-2017
 
 ESP8266 based with local home-assistant.io GUI, 433Mhz transmitter for heater/fan control and DHT22 temperature-humidity sensor
     

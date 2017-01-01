@@ -45,3 +45,5 @@ ESP8266 based with local home-assistant.io GUI, 433Mhz transmitter for heater/fa
     NodeMCU lED lights to show MQTT conenction.
     
     ESP lED lights to show WIFI conenction.
+    
+![alt text](Bunny-Shed-Heating-Controller.jpg "A photo of my setup")    

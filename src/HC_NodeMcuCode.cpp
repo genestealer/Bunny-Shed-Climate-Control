@@ -71,15 +71,22 @@ const char* mqtt_password = secrete_mqtt_password; // MQTT Password
 boolean willRetain = true; // MQTT Last Will and Testament
 const char* willMessage = "offline"; // MQTT Last Will and Testament Message
 
+// Subscribe
+const char* subscribeSetTemperature = secrete_subscribeSetTemperature; //
+
 // Publish
 const char* publishOutputState = secrete_publishOutputState; //
 const char* publishTemperature = secrete_publishTemperature; //
 const char* publishHumidity = secrete_publishHumidity; //
 const char* publishSetTemperature = secrete_publishSetTemperature; //
 const char* publishLastWillTopic = secrete_publishLastWillTopic; //
+const char* publishClientName = secrete_publishClientName; // E.G. Home/Shed/clientName"
+const char* publishIpAddress = secrete_publishIpAddress; // E.G. Home/Shed/IpAddress"
+const char* publishSignalStrength = secrete_publishSignalStrength; // E.G. Home/Shed/SignalStrength"
+const char* publishHostName = secrete_publishHostName; // E.G. Home/Shed/HostName"
+const char* publishSSID = secrete_publishSSID; // E.G. Home/Shed/SSID"
 
-// Subscribe
-const char* subscribeSetTemperature = secrete_subscribeSetTemperature; //
+
 
 // MQTT instance
 WiFiClient espClient;
@@ -89,7 +96,7 @@ long lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://githu
 
 // MQTT publish frequency
 unsigned long previousMillis = 0;
-const long publishInterval = 60000; // Publish requency in milliseconds 60000 = 1 min
+const long publishInterval = 120000; // Publish requency in milliseconds 120000 = 2 min
 
 // LED output parameters
 const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
@@ -97,9 +104,9 @@ const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights 
 
 // Climate parameters
 // Target temperature (Set in code, but modified by web commands, local setpoint incase of internet connection break)
-float targetTemperature = 8; //CHANGE TO ACCOMIDATE FAN AND HEATER
+float targetTemperature = 8; // TO DO - CHANGE TO ACCOMIDATE FAN AND HEATER
 // Target temperature Hysteresis
-const float targetTemperatureHyst = 1;
+const float targetTemperatureHyst = 0.75;
 // Output powered status
 bool outputPoweredStatus = false;
 // // Output powered mode
@@ -107,7 +114,12 @@ bool outputPoweredStatus = false;
 
 // Setp the connection to WIFI and the MQTT Broker. Normally called only once from setup
 void setup_wifi() {
-  // We start by connecting to a WiFi network
+  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
+     would try to act as both a client and an access-point and could cause
+     network-issues with your other WiFi-devices on your WiFi-network. */
+  WiFi.mode(WIFI_STA);
+
+  // Connect to the WiFi network
   Serial.println();
   Serial.print("Connecting to ");
   Serial.print(wifi_ssid);
@@ -118,8 +130,12 @@ void setup_wifi() {
   }
   Serial.print("");
   Serial.println("WiFi connected");
-  Serial.print("IP address: ");
+
+  Serial.printf("RSSI: %d dBm\n", WiFi.RSSI());
+  Serial.print("Connected, IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.printf("Hostname: %s\n", WiFi.hostname().c_str());
+
   digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.
 }
 
@@ -150,13 +166,12 @@ void mqttcallback(char* topic, byte* payload, unsigned int length) {
   String srtTopic = topic;
   String strTopicCompairSetpoint = subscribeSetTemperature;
 
-if (srtTopic.equals(strTopicCompairSetpoint)) {
+  if (srtTopic.equals(strTopicCompairSetpoint)) {
     if (targetTemperature != msgString.toFloat()) {
       Serial.println("new setpoint");
       targetTemperature = msgString.toFloat();
     }
   }
-
 }
 
 /*
@@ -171,8 +186,26 @@ boolean mqttReconnect() {
 
     Serial.print("Attempting MQTT connection...");
 
-    // Once connected, update status to online - will Message will drop in if we go offline ...
-    mqttClient.publish(publishLastWillTopic,"online",true);
+    // Once connected, update status to online, retained = true - last will Message will drop in if we go offline ...
+    mqttClient.publish(publishLastWillTopic, "online", true);
+
+    // Publish device name, retained = true
+    mqttClient.publish(publishClientName, clientName, true);
+
+    // Publish device IP Address, retained = true
+    char buf[16];
+    sprintf(buf, "%d.%d.%d.%d", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3] );
+    mqttClient.publish(publishIpAddress, buf, true);
+
+    // Publish the Wi-Fi signal quality (RSSI), retained = true
+    String tempVar = String(WiFi.RSSI());
+    mqttClient.publish(publishSignalStrength, tempVar.c_str(), true);
+
+    // Publish the device DHCP hostname, retained = true
+    mqttClient.publish(publishHostName, WiFi.hostname().c_str(), true);
+
+    // Publish the WiFi SSID, retained = true
+    mqttClient.publish(publishSSID, WiFi.SSID().c_str(), true);
 
     // Resubscribe to feeds
     mqttClient.subscribe(subscribeSetTemperature);
@@ -316,6 +349,11 @@ void mtqqPublish() {
     if (mqttClient.connected()) {
 
       // Publish data
+
+      // Publish the Wi-Fi signal quality (RSSI), retained = true
+      String tempVar = String(WiFi.RSSI());
+      mqttClient.publish(publishSignalStrength, tempVar.c_str(), true);
+
       // Grab the current state of the sensor
       String strTemp = String(dht.readTemperature()); //Could use String(dht.readTemperature()).c_str()) to do it all in one line
       if (!mqttClient.publish(publishTemperature, String(dht.readTemperature()).c_str())) // Convert dht.readTemperature() to string object, then to char array.

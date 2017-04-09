@@ -1,6 +1,6 @@
 /***************************************************
   Bunny Shed Climate Control
-  Richard Huish 2016
+  Richard Huish 2016-2017
   ESP8266 based with local home-assistant.io GUI,
     433Mhz transmitter for heater/fan control
     and DHT22 temperature-humidity sensor
@@ -26,6 +26,7 @@
   Notes:
     NodeMCU lED lights to show MQTT conenction.
     ESP lED lights to show WIFI conenction.
+    433Mhz TX controls both the heater and fan
 ****************************************************/
 
 // Note: Libaries are inluced in "Project Dependencies" file platformio.ini
@@ -34,7 +35,7 @@
 #include <RCSwitch.h> //  https://github.com/sui77/rc-switch
 #include <DHT.h>  //  https://github.com/adafruit/DHT-sensor-library
 #include <Adafruit_Sensor.h> // have to add for the DHT to work https://github.com/adafruit/Adafruit_Sensor
-#include <secretes.h> // Passwords etc not for github
+#include <Private.h> // Passwords etc not for github
 
 // Define state machine states
 typedef enum {
@@ -72,13 +73,13 @@ boolean willRetain = true; // MQTT Last Will and Testament
 const char* willMessage = "offline"; // MQTT Last Will and Testament Message
 
 // Subscribe
-const char* subscribeSetTemperature = secrete_subscribeSetTemperature; //
+const char* subscribeSetHeaterTemperature = secrete_subscribeSetHeaterTemperature; //
 
 // Publish
-const char* publishOutputState = secrete_publishOutputState; //
+const char* publishHeaterOutputState = secrete_publishHeaterOutputState; //
 const char* publishTemperature = secrete_publishTemperature; //
 const char* publishHumidity = secrete_publishHumidity; //
-const char* publishSetTemperature = secrete_publishSetTemperature; //
+const char* publishSetHeaterTemperature = secrete_publishSetHeaterTemperature; //
 const char* publishLastWillTopic = secrete_publishLastWillTopic; //
 const char* publishClientName = secrete_publishClientName; // E.G. Home/Shed/clientName"
 const char* publishIpAddress = secrete_publishIpAddress; // E.G. Home/Shed/IpAddress"
@@ -103,12 +104,12 @@ const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
 const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
 
 // Climate parameters
-// Target temperature (Set in code, but modified by web commands, local setpoint incase of internet connection break)
-float targetTemperature = 8; // TO DO - CHANGE TO ACCOMIDATE FAN AND HEATER
-// Target temperature Hysteresis
-const float targetTemperatureHyst = 0.75;
-// Output powered status
-bool outputPoweredStatus = false;
+// Target heater temperature (Set in code, but modified by web commands, local setpoint incase of internet connection break)
+float targetHeaterTemperature = 8; // TO DO - CHANGE TO ACCOMIDATE FAN AND HEATER
+// Target heater temperature Hysteresis
+const float targetHeaterTemperatureHyst = 0.75;
+// Heater output powered status
+bool outputHeaterPoweredStatus = false;
 // // Output powered mode
 // bool heaterOrCooler = true; //
 
@@ -164,12 +165,12 @@ void mqttcallback(char* topic, byte* payload, unsigned int length) {
 
   // Check the message topic
   String srtTopic = topic;
-  String strTopicCompairSetpoint = subscribeSetTemperature;
+  String strTopicCompairSetpoint = subscribeSetHeaterTemperature;
 
   if (srtTopic.equals(strTopicCompairSetpoint)) {
-    if (targetTemperature != msgString.toFloat()) {
+    if (targetHeaterTemperature != msgString.toFloat()) {
       Serial.println("new setpoint");
-      targetTemperature = msgString.toFloat();
+      targetHeaterTemperature = msgString.toFloat();
     }
   }
 }
@@ -208,7 +209,7 @@ boolean mqttReconnect() {
     mqttClient.publish(publishSSID, WiFi.SSID().c_str(), true);
 
     // Resubscribe to feeds
-    mqttClient.subscribe(subscribeSetTemperature);
+    mqttClient.subscribe(subscribeSetHeaterTemperature);
     Serial.println("connected");
 
   } else {
@@ -250,9 +251,9 @@ void checkMqttConnection() {
 
 
 // Returns true if heating is required
-boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
+boolean checkHeatRequired(float roomTemperature, float targetHeaterTemperature, float targetTempHyst) {
   // Is room too cold ?
-  if (roomTemperature < (targetTemperature - targetTempHyst))
+  if (roomTemperature < (targetHeaterTemperature - targetTempHyst))
   {
     // Heat needed
     return true;
@@ -278,21 +279,21 @@ void controlHeater(boolean heaterStateRequested) {
   {
     mySwitch.send(2006879, 24);
     Serial.println(F("433Mhz TX ON command sent!"));
-    outputPoweredStatus = true;
+    outputHeaterPoweredStatus = true;
   }
   else
   {
     mySwitch.send(2006871, 24);
     Serial.println(F("433Mhz TX OFF command sent!"));
-    outputPoweredStatus = false;
+    outputHeaterPoweredStatus = false;
 
   }
 
-  String strOutput = String(outputPoweredStatus);
-  if (!mqttClient.publish(publishOutputState, strOutput.c_str()))
-    Serial.print(F("Failed to output state to [")), Serial.print(publishOutputState), Serial.print("] ");
+  String strOutput = String(outputHeaterPoweredStatus);
+  if (!mqttClient.publish(publishHeaterOutputState, strOutput.c_str()))
+    Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
   else
-    Serial.print(F("Output state published to [")), Serial.print(publishOutputState), Serial.println("] ");
+    Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
 
 }
 
@@ -303,7 +304,7 @@ void checkState() {
     case s_idle:
       // State is currently: idle
       // Check if we need to start, by checking if heat is still required.
-      if (checkHeatRequired(dht.readTemperature(), targetTemperature, targetTemperatureHyst))
+      if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
       {
         // Heat no longer required, stop.
         stateMachine = s_start;
@@ -320,7 +321,7 @@ void checkState() {
     case s_on:
       // State is currently: On
       // Check if we need to stop, by checking if heat is still required.
-      if (!checkHeatRequired(dht.readTemperature(), targetTemperature, targetTemperatureHyst))
+      if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
       {
         // Heat no longer required, stop.
         stateMachine = s_stop;
@@ -367,17 +368,17 @@ void mtqqPublish() {
       else
         Serial.print(F("Humidity published to [")), Serial.print(publishHumidity), Serial.println("] ");
 
-      String strSetpoint = String(targetTemperature);
-      if (!mqttClient.publish(publishSetTemperature, strSetpoint.c_str(), true)) // retained = true
-        Serial.print(F("Failed to target temperature to [")), Serial.print(publishSetTemperature), Serial.print("] ");
+      String strSetpoint = String(targetHeaterTemperature);
+      if (!mqttClient.publish(publishSetHeaterTemperature, strSetpoint.c_str(), true)) // retained = true
+        Serial.print(F("Failed to target temperature to [")), Serial.print(publishSetHeaterTemperature), Serial.print("] ");
       else
-        Serial.print(F("Target temperature published to [")), Serial.print(publishSetTemperature), Serial.println("] ");
+        Serial.print(F("Target temperature published to [")), Serial.print(publishSetHeaterTemperature), Serial.println("] ");
 
-      String strOutput = String(outputPoweredStatus);
-      if (!mqttClient.publish(publishOutputState, strOutput.c_str()))
-        Serial.print(F("Failed to output state to [")), Serial.print(publishOutputState), Serial.print("] ");
+      String strOutput = String(outputHeaterPoweredStatus);
+      if (!mqttClient.publish(publishHeaterOutputState, strOutput.c_str()))
+        Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
       else
-        Serial.print(F("Output state published to [")), Serial.print(publishOutputState), Serial.println("] ");
+        Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
     }
   }
 

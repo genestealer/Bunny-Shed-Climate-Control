@@ -115,7 +115,7 @@ const long DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights
 // Climate parameters
 // Target temperatures (Set in code, but modified by web commands, local setpoint in case of internet connection break)
 float targetHeaterTemperature = 8;
-float targetCoolerTemperature = 8;
+float targetCoolerTemperature = 25;
 
 // Target temperature Hysteresis
 const float targetHeaterTemperatureHyst = 0.75;
@@ -184,11 +184,11 @@ void mqttcallback(char* topic, byte* payload, unsigned int length) {
       Serial.println("new heater setpoint");
       targetHeaterTemperature = msgString.toFloat();
     }
-    else if (srtTopic.equals(subscribeSetCoolerTemperature)) {
-      if (targetCoolerTemperature != msgString.toFloat()) {
-        Serial.println("new cooler setpoint");
-        targetCoolerTemperature = msgString.toFloat();
-      }
+  }
+  else if (srtTopic.equals(subscribeSetCoolerTemperature)) {
+    if (targetCoolerTemperature != msgString.toFloat()) {
+      Serial.println("new cooler setpoint");
+      targetCoolerTemperature = msgString.toFloat();
     }
   }
 }
@@ -339,11 +339,11 @@ void controlCooler(boolean coolerStateRequested) {
     outputCoolerPoweredStatus = false;
   }
 
-  String strHeaterOutput = String(outputHeaterPoweredStatus);
-  if (!mqttClient.publish(publishHeaterOutputState, strHeaterOutput.c_str()))
-    Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
+  String strCoolerOutput = String(outputCoolerPoweredStatus);
+  if (!mqttClient.publish(publishCoolerOutputState, strCoolerOutput.c_str()))
+    Serial.print(F("Failed to output state to [")), Serial.print(publishCoolerOutputState), Serial.print("] ");
   else
-    Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
+    Serial.print(F("Output state published to [")), Serial.print(publishCoolerOutputState), Serial.println("] ");
 }
 
 
@@ -357,7 +357,7 @@ void checkState() {
         stateMachine = s_HeaterStart;    // Heat no longer required, stop.
       else if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
       {
-        stateMachine = s_CoolerStart;    // Heat no longer required, stop.
+        stateMachine = s_CoolerStart;    // Cooling no longer required, stop.
         break;
       }
 
@@ -398,7 +398,7 @@ void checkState() {
 
     case s_CoolerOn:
       // State is currently: On
-      // Check if we need to stop, by checking if heat is still required.
+      // Check if we need to stop, by checking if cooling is still required.
       if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
       {
         // Cooling no longer required, stop.

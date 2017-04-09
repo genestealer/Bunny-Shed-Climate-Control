@@ -299,11 +299,11 @@ void controlHeater(boolean heaterStateRequested) {
   // Find the codes for your RC Switch using https://github.com/ninjablocks/433Utils (RF_Sniffer.ino)
   if (heaterStateRequested == 1)
   {
-    mySwitch.send(123, 24);  // Replace codes as required
+    mySwitch.send(secret_HeaterOnCommand, 24);  // Replace codes as required
     Serial.println(F("433Mhz TX ON command sent!"));
     outputHeaterPoweredStatus = true;
   }  else  {
-    mySwitch.send(1234, 24);  // Replace codes as required
+    mySwitch.send(secret_HeaterOffCommand, 24);  // Replace codes as required
     Serial.println(F("433Mhz TX OFF command sent!"));
     outputHeaterPoweredStatus = false;
   }

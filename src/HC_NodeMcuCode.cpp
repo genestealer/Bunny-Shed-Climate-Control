@@ -44,7 +44,7 @@ typedef enum {
   s_on = 2,     // state on
   s_stop = 3,   // state stop
 } e_state;
-int stateMachine = 0;
+long stateMachine = 0;
 
 // DHT sensor parameters
 #define DHTPIN 5 // GPIO pin 5 (NodeMCU Pin D1)
@@ -54,38 +54,44 @@ int stateMachine = 0;
 DHT dht(DHTPIN, DHTTYPE, 15);
 
 // 433Mhz transmitter parameters
-const int tx433Mhz_pin = 2; // GPIO pin 2 (NODEMCU Pin D4)
-const int setPulseLength = 305;
+const long tx433Mhz_pin = 2; // GPIO pin 2 (NODEMCU Pin D4)
+const long setPulseLength = 305;
 
 // 433MHZ TX instance
 RCSwitch mySwitch = RCSwitch();
 
 // WiFi parameters
-const char* wifi_ssid = secrete_wifi_ssid; // Wifi access point SSID
-const char* wifi_password = secrete_wifi_password; // Wifi access point password
+const char* wifi_ssid = secret_wifi_ssid; // Wifi access point SSID
+const char* wifi_password = secret_wifi_password; // Wifi access point password
 
 // MQTT Settings
-const char* mqtt_server = secrete_mqtt_server; // E.G. 192.168.1.xx
-const char* clientName = secrete_clientName; // Client to report to MQTT
-const char* mqtt_username = secrete_mqtt_username; // MQTT Username
-const char* mqtt_password = secrete_mqtt_password; // MQTT Password
+const char* mqtt_server = secret_mqtt_server; // E.G. 192.168.1.xx
+const char* clientName = secret_clientName; // Client to report to MQTT
+const char* mqtt_username = secret_mqtt_username; // MQTT Username
+const char* mqtt_password = secret_mqtt_password; // MQTT Password
 boolean willRetain = true; // MQTT Last Will and Testament
 const char* willMessage = "offline"; // MQTT Last Will and Testament Message
 
 // Subscribe
-const char* subscribeSetHeaterTemperature = secrete_subscribeSetHeaterTemperature; //
+const char* subscribeSetHeaterTemperature = secret_subscribeSetHeaterTemperature; //
+const char* subscribeSetCoolerTemperature = secret_subscribeSetCoolerTemperature; //
 
 // Publish
-const char* publishHeaterOutputState = secrete_publishHeaterOutputState; //
-const char* publishTemperature = secrete_publishTemperature; //
-const char* publishHumidity = secrete_publishHumidity; //
-const char* publishSetHeaterTemperature = secrete_publishSetHeaterTemperature; //
-const char* publishLastWillTopic = secrete_publishLastWillTopic; //
-const char* publishClientName = secrete_publishClientName; // E.G. Home/Shed/clientName"
-const char* publishIpAddress = secrete_publishIpAddress; // E.G. Home/Shed/IpAddress"
-const char* publishSignalStrength = secrete_publishSignalStrength; // E.G. Home/Shed/SignalStrength"
-const char* publishHostName = secrete_publishHostName; // E.G. Home/Shed/HostName"
-const char* publishSSID = secrete_publishSSID; // E.G. Home/Shed/SSID"
+const char* publishHeaterOutputState = secret_publishHeaterOutputState; //
+const char* publishCoolerOutputState = secret_publishCoolerOutputState; //
+
+const char* publishSetHeaterTemperature = secret_publishSetHeaterTemperature; //
+const char* publishSetCoolerTemperature = secret_publishSetCoolerTemperature; //
+
+const char* publishTemperature = secret_publishTemperature; //
+const char* publishHumidity = secret_publishHumidity; //
+
+const char* publishLastWillTopic = secret_publishLastWillTopic; //
+const char* publishClientName = secret_publishClientName; // E.G. Home/Shed/clientName"
+const char* publishIpAddress = secret_publishIpAddress; // E.G. Home/Shed/IpAddress"
+const char* publishSignalStrength = secret_publishSignalStrength; // E.G. Home/Shed/SignalStrength"
+const char* publishHostName = secret_publishHostName; // E.G. Home/Shed/HostName"
+const char* publishSSID = secret_publishSSID; // E.G. Home/Shed/SSID"
 
 
 
@@ -100,18 +106,21 @@ unsigned long previousMillis = 0;
 const long publishInterval = 120000; // Publish requency in milliseconds 120000 = 2 min
 
 // LED output parameters
-const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
-const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
+const long DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
+const long DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
 
 // Climate parameters
-// Target heater temperature (Set in code, but modified by web commands, local setpoint incase of internet connection break)
-float targetHeaterTemperature = 8; // TO DO - CHANGE TO ACCOMIDATE FAN AND HEATER
-// Target heater temperature Hysteresis
+// Target temperatures (Set in code, but modified by web commands, local setpoint in case of internet connection break)
+float targetHeaterTemperature = 8;
+float targetCoolerTemperature = 8;
+
+// Target temperature Hysteresis
 const float targetHeaterTemperatureHyst = 0.75;
-// Heater output powered status
+const float targetCoolerTemperatureHyst = 0.75;
+
+// Output powered status
 bool outputHeaterPoweredStatus = false;
-// // Output powered mode
-// bool heaterOrCooler = true; //
+bool outputCoolerPoweredStatus = false;
 
 // Setp the connection to WIFI and the MQTT Broker. Normally called only once from setup
 void setup_wifi() {
@@ -141,20 +150,20 @@ void setup_wifi() {
 }
 
 // MQTT payload in seconds will turn on output. A payload of 0 will turn off the output.
-void mqttcallback(char* topic, byte* payload, unsigned int length) {
+void mqttcallback(char* topic, byte* payload, unsigned long length) {
   //If you want to publish a message from within the message callback function, it is necessary to make a copy of the topic and payload values as the client uses the same internal buffer for inbound and outbound messages:
   //http://www.hivemq.com/blog/mqtt-client-library-encyclopedia-arduino-pubsubclient/
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) {
+  for (long i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
 
 
   // create character buffer with ending null terminator (string)
-  int i = 0;
+  long i = 0;
   for (i = 0; i < length; i++) {
     message_buff[i] = payload[i];
   }
@@ -165,12 +174,18 @@ void mqttcallback(char* topic, byte* payload, unsigned int length) {
 
   // Check the message topic
   String srtTopic = topic;
-  String strTopicCompairSetpoint = subscribeSetHeaterTemperature;
+  //String strTopicCompairSetpoint = subscribeSetHeaterTemperature;
 
-  if (srtTopic.equals(strTopicCompairSetpoint)) {
+  if (srtTopic.equals(subscribeSetHeaterTemperature)) {
     if (targetHeaterTemperature != msgString.toFloat()) {
-      Serial.println("new setpoint");
+      Serial.println("new heater setpoint");
       targetHeaterTemperature = msgString.toFloat();
+    }
+    else if (srtTopic.equals(subscribeSetCoolerTemperature)) {
+      if (targetCoolerTemperature != msgString.toFloat()) {
+        Serial.println("new cooler setpoint");
+        targetCoolerTemperature = msgString.toFloat();
+      }
     }
   }
 }
@@ -210,6 +225,7 @@ boolean mqttReconnect() {
 
     // Resubscribe to feeds
     mqttClient.subscribe(subscribeSetHeaterTemperature);
+    mqttClient.subscribe(subscribeSetCoolerTemperature);
     Serial.println("connected");
 
   } else {
@@ -249,25 +265,31 @@ void checkMqttConnection() {
   }
 }
 
-
 // Returns true if heating is required
-boolean checkHeatRequired(float roomTemperature, float targetHeaterTemperature, float targetTempHyst) {
+boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
   // Is room too cold ?
-  if (roomTemperature < (targetHeaterTemperature - targetTempHyst))
+  if (roomTemperature < (targetTemperature - targetTempHyst))
   {
-    // Heat needed
     return true;
-  }
-  // Else room is hot enough
-  else
+  } // Heat needed
+  else // Else room is hot enough
   {
-    // No heat needed
     return false;
   }
+} // No heat needed
 
-
+// Returns true if cooling is required
+boolean checkCoolRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
+  // Is room too hot ?
+  if (roomTemperature > (targetTemperature + targetTempHyst))
+  {
+    return true; // Cooling needed
+  }
+  else // Else room is cold enough
+  {
+    return false; // No cooling needed
+  }
 }
-
 
 // Control heater
 void controlHeater(boolean heaterStateRequested) {
@@ -277,16 +299,13 @@ void controlHeater(boolean heaterStateRequested) {
   // Find the codes for your RC Switch using https://github.com/ninjablocks/433Utils (RF_Sniffer.ino)
   if (heaterStateRequested == 1)
   {
-    mySwitch.send(2006879, 24);
+    mySwitch.send(123, 24);  // Replace codes as required
     Serial.println(F("433Mhz TX ON command sent!"));
     outputHeaterPoweredStatus = true;
-  }
-  else
-  {
-    mySwitch.send(2006871, 24);
+  }  else  {
+    mySwitch.send(1234, 24);  // Replace codes as required
     Serial.println(F("433Mhz TX OFF command sent!"));
     outputHeaterPoweredStatus = false;
-
   }
 
   String strOutput = String(outputHeaterPoweredStatus);
@@ -294,7 +313,6 @@ void controlHeater(boolean heaterStateRequested) {
     Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
   else
     Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
-
 }
 
 

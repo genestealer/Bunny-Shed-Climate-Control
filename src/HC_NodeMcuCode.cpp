@@ -40,9 +40,12 @@
 // Define state machine states
 typedef enum {
   s_idle = 0,   // state idle
-  s_start = 1,  // state start
-  s_on = 2,     // state on
-  s_stop = 3,   // state stop
+  s_HeaterStart = 1,  // state start
+  s_HeaterOn = 2,     // state on
+  s_HeaterStop = 3,   // state stop
+  s_CoolerStart = 4,  // state start
+  s_CoolerOn = 5,     // state on
+  s_CoolerStop = 6,   // state stop
 } e_state;
 int stateMachine = 0;
 
@@ -308,8 +311,36 @@ void controlHeater(boolean heaterStateRequested) {
     outputHeaterPoweredStatus = false;
   }
 
-  String strOutput = String(outputHeaterPoweredStatus);
-  if (!mqttClient.publish(publishHeaterOutputState, strOutput.c_str()))
+  String strHeaterOutput = String(outputHeaterPoweredStatus);
+  if (!mqttClient.publish(publishHeaterOutputState, strHeaterOutput.c_str()))
+    Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
+  else
+    Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
+}
+
+// Control cooler
+void controlCooler(boolean coolerStateRequested) {
+  // Acknowledgements
+  // thisoldgeek/ESP8266-RCSwitch
+  // https://github.com/thisoldgeek/ESP8266-RCSwitch
+  // Find the codes for your RC Switch using https://github.com/ninjablocks/433Utils (RF_Sniffer.ino)
+  if (coolerStateRequested == 1)
+  {
+    mySwitch.send(secret_CoolerOnCommand, 24);  // Replace codes as required
+    Serial.println(F("433Mhz TX ON command sent!"));
+    outputCoolerPoweredStatus = true;
+  }
+
+  else
+
+  {
+    mySwitch.send(secret_CoolerOffCommand, 24);  // Replace codes as required
+    Serial.println(F("433Mhz TX OFF command sent!"));
+    outputCoolerPoweredStatus = false;
+  }
+
+  String strHeaterOutput = String(outputHeaterPoweredStatus);
+  if (!mqttClient.publish(publishHeaterOutputState, strHeaterOutput.c_str()))
     Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
   else
     Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
@@ -323,37 +354,67 @@ void checkState() {
       // State is currently: idle
       // Check if we need to start, by checking if heat is still required.
       if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
+        stateMachine = s_HeaterStart;    // Heat no longer required, stop.
+      else if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
       {
-        // Heat no longer required, stop.
-        stateMachine = s_start;
+        stateMachine = s_CoolerStart;    // Heat no longer required, stop.
+        break;
       }
-      break;
-    case s_start:
+
+    case s_HeaterStart:
       // State is currently: starting
-      Serial.println("State is currently: starting");
+      Serial.println("State is currently: starting heating");
       // Command the heater to turn on.
       controlHeater(true);
-      stateMachine = s_on;
+      stateMachine = s_HeaterOn;
       break;
 
-    case s_on:
+    case s_HeaterOn:
       // State is currently: On
       // Check if we need to stop, by checking if heat is still required.
       if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
       {
         // Heat no longer required, stop.
-        stateMachine = s_stop;
+        stateMachine = s_HeaterStop;
       }
       break;
 
-    case s_stop:
+    case s_HeaterStop:
       // State is currently: stopping
-      Serial.println("State is currently: stopping");
+      Serial.println("State is currently: stopping heating");
       // Command the heater to turn off.
       controlHeater(false);
       // Set state mahcine to idle on the next loop
       stateMachine = s_idle;
       break;
+
+    case s_CoolerStart:
+      // State is currently: starting
+      Serial.println("State is currently: starting cooling");
+      // Command the heater to turn on.
+      controlCooler(true);
+      stateMachine = s_CoolerOn;
+      break;
+
+    case s_CoolerOn:
+      // State is currently: On
+      // Check if we need to stop, by checking if heat is still required.
+      if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
+      {
+        // Cooling no longer required, stop.
+        stateMachine = s_HeaterStop;
+      }
+      break;
+
+    case s_CoolerStop:
+      // State is currently: stopping
+      Serial.println("State is currently: stopping cooling");
+      // Command the cooler to turn off.
+      controlCooler(false);
+      // Set state mahcine to idle on the next loop
+      stateMachine = s_idle;
+      break;
+
   }
 }
 
@@ -392,11 +453,18 @@ void mtqqPublish() {
       else
         Serial.print(F("Target temperature published to [")), Serial.print(publishSetHeaterTemperature), Serial.println("] ");
 
-      String strOutput = String(outputHeaterPoweredStatus);
-      if (!mqttClient.publish(publishHeaterOutputState, strOutput.c_str()))
-        Serial.print(F("Failed to output state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
+      String strHeaterOutput = String(outputHeaterPoweredStatus);
+      if (!mqttClient.publish(publishHeaterOutputState, strHeaterOutput.c_str()))
+        Serial.print(F("Failed to output heater state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
       else
-        Serial.print(F("Output state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
+        Serial.print(F("Output heater state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
+
+      String strCoolerOutput = String(outputCoolerPoweredStatus);
+      if (!mqttClient.publish(publishHeaterOutputState, strCoolerOutput.c_str()))
+        Serial.print(F("Failed to output cooler state to [")), Serial.print(publishCoolerOutputState), Serial.print("] ");
+      else
+        Serial.print(F("Output cooler state published to [")), Serial.print(publishCoolerOutputState), Serial.println("] ");
+
     }
   }
 

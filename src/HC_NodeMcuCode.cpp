@@ -44,7 +44,7 @@ typedef enum {
   s_on = 2,     // state on
   s_stop = 3,   // state stop
 } e_state;
-long stateMachine = 0;
+int stateMachine = 0;
 
 // DHT sensor parameters
 #define DHTPIN 5 // GPIO pin 5 (NodeMCU Pin D1)
@@ -54,8 +54,8 @@ long stateMachine = 0;
 DHT dht(DHTPIN, DHTTYPE, 15);
 
 // 433Mhz transmitter parameters
-const long tx433Mhz_pin = 2; // GPIO pin 2 (NODEMCU Pin D4)
-const long setPulseLength = 305;
+const int tx433Mhz_pin = 2; // GPIO pin 2 (NODEMCU Pin D4)
+const int setPulseLength = 305;
 
 // 433MHZ TX instance
 RCSwitch mySwitch = RCSwitch();
@@ -99,7 +99,7 @@ const char* publishSSID = secret_publishSSID; // E.G. Home/Shed/SSID"
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 char message_buff[100];
-long lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github.com/knolleary/pubsubclient/blob/master/examples/mqtt_reconnect_nonblocking/mqtt_reconnect_nonblocking.ino
+int lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github.com/knolleary/pubsubclient/blob/master/examples/mqtt_reconnect_nonblocking/mqtt_reconnect_nonblocking.ino
 
 // MQTT publish frequency
 unsigned long previousMillis = 0;
@@ -150,20 +150,20 @@ void setup_wifi() {
 }
 
 // MQTT payload in seconds will turn on output. A payload of 0 will turn off the output.
-void mqttcallback(char* topic, byte* payload, unsigned long length) {
+void mqttcallback(char* topic, byte* payload, unsigned int length) {
   //If you want to publish a message from within the message callback function, it is necessary to make a copy of the topic and payload values as the client uses the same internal buffer for inbound and outbound messages:
   //http://www.hivemq.com/blog/mqtt-client-library-encyclopedia-arduino-pubsubclient/
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (long i = 0; i < length; i++) {
+  for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
 
 
   // create character buffer with ending null terminator (string)
-  long i = 0;
+  int i = 0;
   for (i = 0; i < length; i++) {
     message_buff[i] = payload[i];
   }

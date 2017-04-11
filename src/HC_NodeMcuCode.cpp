@@ -118,8 +118,8 @@ float targetHeaterTemperature = 8;
 float targetCoolerTemperature = 25;
 
 // Target temperature Hysteresis
-const float targetHeaterTemperatureHyst = 0.75;
-const float targetCoolerTemperatureHyst = 0.75;
+const float targetHeaterTemperatureHyst = 1; // DHT22 has 0.5 accuracy
+const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy 
 
 // Output powered status
 bool outputHeaterPoweredStatus = false;

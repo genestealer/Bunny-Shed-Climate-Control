@@ -119,7 +119,7 @@ float targetCoolerTemperature = 25;
 
 // Target temperature Hysteresis
 const float targetHeaterTemperatureHyst = 1; // DHT22 has 0.5 accuracy
-const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy 
+const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy
 
 // Output powered status
 bool outputHeaterPoweredStatus = false;
@@ -152,7 +152,7 @@ void setup_wifi() {
   digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.
 }
 
-// MQTT payload in seconds will turn on output. A payload of 0 will turn off the output.
+// MQTT payload
 void mqttcallback(char* topic, byte* payload, unsigned int length) {
   //If you want to publish a message from within the message callback function, it is necessary to make a copy of the topic and payload values as the client uses the same internal buffer for inbound and outbound messages:
   //http://www.hivemq.com/blog/mqtt-client-library-encyclopedia-arduino-pubsubclient/
@@ -356,7 +356,6 @@ void checkState() {
   switch (stateMachine) {
     case s_idle:
       // State is currently: idle
-
       // Check if we shoudl be in cooling or heating mode.
       if (dht.readTemperature() < (targetHeaterTemperature -  targetHeaterTemperatureHyst))
       {
@@ -365,7 +364,6 @@ void checkState() {
         if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
         {
           stateMachine = s_HeaterStart;    // Heat no longer required, stop.
-
         }
       }
       else if (dht.readTemperature() > (targetCoolerTemperature + targetCoolerTemperatureHyst))
@@ -376,65 +374,63 @@ void checkState() {
           stateMachine = s_CoolerStart;    // Cooling no longer required, stop.
         }
       }
-
       break;
 
-
     case s_HeaterStart:
-        // State is currently: starting
-        Serial.println("State is currently: starting heating");
-        // Command the heater to turn on.
-        controlHeater(true);
-        stateMachine = s_HeaterOn;
-        break;
+      // State is currently: starting
+      Serial.println("State is currently: starting heating");
+      // Command the heater to turn on.
+      controlHeater(true);
+      stateMachine = s_HeaterOn;
+      break;
 
-      case s_HeaterOn:
-          // State is currently: On
-          // Check if we need to stop, by checking if heat is still required.
-          if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
-          {
-            // Heat no longer required, stop.
-            stateMachine = s_HeaterStop;
-          }
+    case s_HeaterOn:
+      // State is currently: On
+      // Check if we need to stop, by checking if heat is still required.
+      if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
+      {
+        // Heat no longer required, stop.
+        stateMachine = s_HeaterStop;
+      }
       break;
 
     case s_HeaterStop:
-        // State is currently: stopping
-        Serial.println("State is currently: stopping heating");
-        // Command the heater to turn off.
-        controlHeater(false);
-        // Set state mahcine to idle on the next loop
-        stateMachine = s_idle;
-        break;
+      // State is currently: stopping
+      Serial.println("State is currently: stopping heating");
+      // Command the heater to turn off.
+      controlHeater(false);
+      // Set state mahcine to idle on the next loop
+      stateMachine = s_idle;
+      break;
 
-      case s_CoolerStart:
-          // State is currently: starting
-          Serial.println("State is currently: starting cooling");
-          // Command the heater to turn on.
-          controlCooler(true);
-          stateMachine = s_CoolerOn;
-          break;
+    case s_CoolerStart:
+      // State is currently: starting
+      Serial.println("State is currently: starting cooling");
+      // Command the heater to turn on.
+      controlCooler(true);
+      stateMachine = s_CoolerOn;
+      break;
 
-        case s_CoolerOn:
-            // State is currently: On
-            // Check if we need to stop, by checking if cooling is still required.
-            if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
-            {
-              // Cooling no longer required, stop.
-              stateMachine = s_CoolerStop;
-            }
+    case s_CoolerOn:
+      // State is currently: On
+      // Check if we need to stop, by checking if cooling is still required.
+      if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
+      {
+        // Cooling no longer required, stop.
+        stateMachine = s_CoolerStop;
+      }
       break;
 
     case s_CoolerStop:
-        // State is currently: stopping
-        Serial.println("State is currently: stopping cooling");
-        // Command the cooler to turn off.
-        controlCooler(false);
-        // Set state mahcine to idle on the next loop
-        stateMachine = s_idle;
-        break;
+      // State is currently: stopping
+      Serial.println("State is currently: stopping cooling");
+      // Command the cooler to turn off.
+      controlCooler(false);
+      // Set state mahcine to idle on the next loop
+      stateMachine = s_idle;
+      break;
 
-      }
+  }
 }
 
 void mtqqPublish() {
@@ -490,9 +486,6 @@ void mtqqPublish() {
 }
 
 
-
-
-
 void setup() {
   // Initialize pins
   pinMode(DIGITAL_PIN_LED_NODEMCU, OUTPUT);
@@ -515,7 +508,6 @@ void setup() {
 
   // Init temperature and humidity sensor
   dht.begin();
-
 
   // Call on the background functions to allow them to do their thing
   yield();

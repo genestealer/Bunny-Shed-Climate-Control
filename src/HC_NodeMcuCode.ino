@@ -39,7 +39,7 @@
 
 // Define state machine states
 typedef enum {
-  s_idle = 0,   // state idle
+  s_idle = 0,         // state idle
   s_HeaterStart = 1,  // state start
   s_HeaterOn = 2,     // state on
   s_HeaterStop = 3,   // state stop

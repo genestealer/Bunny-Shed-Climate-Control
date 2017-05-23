@@ -118,8 +118,8 @@ float targetHeaterTemperature = 8;
 float targetCoolerTemperature = 25;
 
 // Target temperature Hysteresis
-const float targetHeaterTemperatureHyst = 1; // DHT22 has 0.5 accuracy
-const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy
+const float targetHeaterTemperatureHyst = 2; // DHT22 has 0.5 accuracy
+const float targetCoolerTemperatureHyst = 3; // DHT22 has 0.5 accuracy
 
 // Output powered status
 bool outputHeaterPoweredStatus = false;
@@ -475,7 +475,7 @@ void mtqqPublish() {
         Serial.print(F("Output heater state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
 
       String strCoolerOutput = String(outputCoolerPoweredStatus);
-      if (!mqttClient.publish(publishHeaterOutputState, strCoolerOutput.c_str()))
+      if (!mqttClient.publish(publishCoolerOutputState, strCoolerOutput.c_str()))
         Serial.print(F("Failed to output cooler state to [")), Serial.print(publishCoolerOutputState), Serial.print("] ");
       else
         Serial.print(F("Output cooler state published to [")), Serial.print(publishCoolerOutputState), Serial.println("] ");

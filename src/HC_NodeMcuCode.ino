@@ -13,6 +13,7 @@
   ----------
   GUi: Locally hosted home assistant
   MQTT: Locally hosted broker https://mosquitto.org/
+  OTA updates
   ----------
   The circuit:
   NodeMCU Amica (ESP8266)
@@ -36,6 +37,9 @@
 #include <DHT.h>  //  https://github.com/adafruit/DHT-sensor-library
 #include <Adafruit_Sensor.h> // have to add for the DHT to work https://github.com/adafruit/Adafruit_Sensor
 #include <Private.h> // Passwords etc not for github
+#include <ESP8266mDNS.h>   // Needed for Over-the-Air ESP8266 programming
+#include <WiFiUdp.h>       // Needed for Over-the-Air ESP8266 programming
+#include <ArduinoOTA.h>    // Needed for Over-the-Air ESP8266 programming
 
 // Define state machine states
 typedef enum {
@@ -106,7 +110,7 @@ int lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github
 
 // MQTT publish frequency
 unsigned long previousMillis = 0;
-const long publishInterval = 120000; // Publish requency in milliseconds 120000 = 2 min
+const long publishInterval = 60000; // Publish requency in milliseconds 60000 = 1 min
 
 // LED output parameters
 const long DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
@@ -119,11 +123,16 @@ float targetCoolerTemperature = 25;
 
 // Target temperature Hysteresis
 const float targetHeaterTemperatureHyst = 2; // DHT22 has 0.5 accuracy
-const float targetCoolerTemperatureHyst = 3; // DHT22 has 0.5 accuracy
+const float targetCoolerTemperatureHyst = 2; // DHT22 has 0.5 accuracy
 
 // Output powered status
 bool outputHeaterPoweredStatus = false;
 bool outputCoolerPoweredStatus = false;
+
+
+// Start Code re-use code block
+//##################################################################################
+//##################################################################################
 
 // Setp the connection to WIFI and the MQTT Broker. Normally called only once from setup
 void setup_wifi() {
@@ -150,6 +159,45 @@ void setup_wifi() {
   Serial.printf("Hostname: %s\n", WiFi.hostname().c_str());
 
   digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.
+}
+
+// Setup Over-the-Air programming, called from the setup.
+// https://www.penninkhof.com/2015/12/1610-over-the-air-esp8266-programming-using-platformio/
+void setup_OTA() {
+
+    // Port defaults to 8266
+    // ArduinoOTA.setPort(8266);
+
+    // Hostname defaults to esp8266-[ChipID]
+    // ArduinoOTA.setHostname("myesp8266");
+
+    // No authentication by default
+    // ArduinoOTA.setPassword("admin");
+    ArduinoOTA.onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    });
+    ArduinoOTA.onEnd([]() {
+      Serial.println("\nEnd");
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    });
+    ArduinoOTA.begin();
 }
 
 // MQTT payload
@@ -271,6 +319,11 @@ void checkMqttConnection() {
     mqttClient.loop();
   }
 }
+// End Code re-use code block
+//##################################################################################
+//##################################################################################
+
+
 
 // Returns true if heating is required
 boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
@@ -513,6 +566,12 @@ void setup() {
   yield();
   // Setup wifi
   setup_wifi();
+
+  // Call on the background functions to allow them to do their thing
+  yield();
+  // Setup OTA updates.
+  setup_OTA();
+
   // Call on the background functions to allow them to do their thing
   yield();
   // Set MQTT settings
@@ -536,4 +595,7 @@ void loop() {
   checkState();
 
   mtqqPublish();
+  //call on the background functions to allow them to do their thing.
+  yield();
+  ArduinoOTA.handle();
 }

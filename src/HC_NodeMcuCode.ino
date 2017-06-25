@@ -328,7 +328,7 @@ void checkMqttConnection() {
 // Returns true if heating is required
 boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
   // Is room too cold ?
-  if (roomTemperature < (targetTemperature - targetTempHyst))
+  if (roomTemperature <= (targetTemperature - targetTempHyst))
   {
     return true;
   } // Heat needed
@@ -341,7 +341,7 @@ boolean checkHeatRequired(float roomTemperature, float targetTemperature, float 
 // Returns true if cooling is required
 boolean checkCoolRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
   // Is room too hot ?
-  if (roomTemperature > (targetTemperature + targetTempHyst))
+  if (roomTemperature >= (targetTemperature + targetTempHyst))
   {
     return true; // Cooling needed
   }
@@ -386,11 +386,7 @@ void controlCooler(boolean coolerStateRequested) {
     mySwitch.send(secret_CoolerOnCommand, 24);  // Replace codes as required
     Serial.println(F("433Mhz TX ON command sent!"));
     outputCoolerPoweredStatus = true;
-  }
-
-  else
-
-  {
+  } else {
     mySwitch.send(secret_CoolerOffCommand, 24);  // Replace codes as required
     Serial.println(F("433Mhz TX OFF command sent!"));
     outputCoolerPoweredStatus = false;
@@ -408,25 +404,30 @@ void controlCooler(boolean coolerStateRequested) {
 void checkState() {
   switch (stateMachine) {
     case s_idle:
-      // State is currently: idle
-      // Check if we shoudl be in cooling or heating mode.
-      if (dht.readTemperature() < (targetHeaterTemperature -  targetHeaterTemperatureHyst))
-      {
-        // It's cold, we should be heating
-        // Check if we need to start, by checking if heat is still required.
+      // State is currently: idle. Neather cooling or heating.
+
+      // // Check if we should be heating.
+      // if (dht.readTemperature() <= targetHeaterTemperature)
+      // {
+        // It's cold, we should be heating.
+        // Check if we need to start, by checking if heat is required.
         if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
         {
-          stateMachine = s_HeaterStart;    // Heat no longer required, stop.
+          stateMachine = s_HeaterStart;    // Heat required, start.
         }
-      }
-      else if (dht.readTemperature() > (targetCoolerTemperature + targetCoolerTemperatureHyst))
-      {
-        // It's hot, we should be heating
-        if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
+        else if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
         {
-          stateMachine = s_CoolerStart;    // Cooling no longer required, stop.
+          stateMachine = s_CoolerStart;    // Cooling required, start.
         }
-      }
+      // }
+      // else if (dht.readTemperature() >= targetCoolerTemperature)
+      // {
+      //   It's hot, we should be heating
+      //   if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
+      //   {
+      //     stateMachine = s_CoolerStart;    // Cooling required, start.
+      //   }
+      // }
       break;
 
     case s_HeaterStart:
@@ -439,6 +440,7 @@ void checkState() {
 
     case s_HeaterOn:
       // State is currently: On
+      // This inhibits the cooler turning on.
       // Check if we need to stop, by checking if heat is still required.
       if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
       {
@@ -466,6 +468,7 @@ void checkState() {
 
     case s_CoolerOn:
       // State is currently: On
+      // This inhibits the heater turning on.
       // Check if we need to stop, by checking if cooling is still required.
       if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
       {
@@ -486,7 +489,7 @@ void checkState() {
   }
 }
 
-void mtqqPublish() {
+void mqttPublish() {
 
   // Only run when publishInterval in milliseonds exspires
   unsigned long currentMillis = millis();
@@ -589,12 +592,13 @@ void loop() {
   yield(); //call on the background functions to allow them to do their thing.
   // First check if we are connected to the MQTT broker
   checkMqttConnection();
+  
   //call on the background functions to allow them to do their thing.
   yield();
   // Check the status and do actions
   checkState();
 
-  mtqqPublish();
+  mqttPublish();
   //call on the background functions to allow them to do their thing.
   yield();
   ArduinoOTA.handle();

@@ -122,8 +122,8 @@ float targetHeaterTemperature = 8;
 float targetCoolerTemperature = 25;
 
 // Target temperature Hysteresis
-const float targetHeaterTemperatureHyst = 2; // DHT22 has 0.5 accuracy
-const float targetCoolerTemperatureHyst = 2; // DHT22 has 0.5 accuracy
+const float targetHeaterTemperatureHyst = 1; // DHT22 has 0.5 accuracy
+const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy
 
 // Output powered status
 bool outputHeaterPoweredStatus = false;
@@ -339,15 +339,34 @@ boolean checkHeatRequired(float roomTemperature, float targetTemperature, float 
 } // No heat needed
 
 // Returns true if cooling is required
-boolean checkCoolRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
+boolean checkCoolRequired(float roomTemperature, float targetTemperature, float targetTempHyst, bool poweredState) {
   // Is room too hot ?
-  if (roomTemperature >= (targetTemperature + targetTempHyst))
+
+  // Check if cooling is active.
+  if (!poweredState)
   {
-    return true; // Cooling needed
-  }
-  else // Else room is cold enough
-  {
-    return false; // No cooling needed
+    // Cooler is not active
+    // Room is warming up
+    // Use Hyst to delay starting cooling until we are passed the target to avoid over cycling the cooler.
+    if (roomTemperature > (targetTemperature + targetTempHyst))
+    {
+      return true; // Cooling needed
+    }
+    else // Else room is not warm enough
+    {
+      return false; // No cooling needed
+    }
+  }  else  {
+    // Cooler is active
+    // Use Hyst to delay stopping cooling until we are passed the target to avoid over cycling the cooler.
+    if (roomTemperature < (targetTemperature - targetTempHyst))
+    {
+      return false; // No cooling needed
+    }
+    else // Else room is not cold enough
+    {
+      return true; // Cooling needed
+    }
   }
 }
 
@@ -415,7 +434,7 @@ void checkState() {
         {
           stateMachine = s_HeaterStart;    // Heat required, start.
         }
-        else if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
+        else if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst, false))
         {
           stateMachine = s_CoolerStart;    // Cooling required, start.
         }
@@ -470,7 +489,7 @@ void checkState() {
       // State is currently: On
       // This inhibits the heater turning on.
       // Check if we need to stop, by checking if cooling is still required.
-      if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst))
+      if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst, true))
       {
         // Cooling no longer required, stop.
         stateMachine = s_CoolerStop;
@@ -592,7 +611,7 @@ void loop() {
   yield(); //call on the background functions to allow them to do their thing.
   // First check if we are connected to the MQTT broker
   checkMqttConnection();
-  
+
   //call on the background functions to allow them to do their thing.
   yield();
   // Check the status and do actions

@@ -60,16 +60,16 @@ int stateMachine = 0;
 // DHT sensor instance
 DHT dht(DHTPIN, DHTTYPE, 15);
 
+// WiFi parameters
+const char* wifi_ssid = secret_wifi_ssid; // Wifi access point SSID
+const char* wifi_password = secret_wifi_password; // Wifi access point password
+
 // 433Mhz transmitter parameters
 const int tx433Mhz_pin = 2; // GPIO pin 2 (NODEMCU Pin D4)
 const int setPulseLength = 305;
 
 // 433MHZ TX instance
 RCSwitch mySwitch = RCSwitch();
-
-// WiFi parameters
-const char* wifi_ssid = secret_wifi_ssid; // Wifi access point SSID
-const char* wifi_password = secret_wifi_password; // Wifi access point password
 
 // MQTT Settings
 const char* mqtt_server = secret_mqtt_server; // E.G. 192.168.1.xx
@@ -106,15 +106,15 @@ const char* publishSSID = secret_publishSSID; // E.G. Home/Shed/SSID"
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 char message_buff[100];
-int lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github.com/knolleary/pubsubclient/blob/master/examples/mqtt_reconnect_nonblocking/mqtt_reconnect_nonblocking.ino
+long lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github.com/knolleary/pubsubclient/blob/master/examples/mqtt_reconnect_nonblocking/mqtt_reconnect_nonblocking.ino
 
 // MQTT publish frequency
 unsigned long previousMillis = 0;
 const long publishInterval = 60000; // Publish requency in milliseconds 60000 = 1 min
 
 // LED output parameters
-const long DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
-const long DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
+const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
+const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
 
 // Climate parameters
 // Target temperatures (Set in code, but modified by web commands, local setpoint in case of internet connection break)
@@ -282,14 +282,16 @@ boolean mqttReconnect() {
     mqttClient.subscribe(subscribeSetHeaterTemperature);
     mqttClient.subscribe(subscribeSetCoolerTemperature);
     Serial.println("connected");
-
-  } else {
+  }
+  else
+  {
     Serial.print("Failed MQTT connection, rc=");
     Serial.print(mqttClient.state());
-    Serial.println(" try in 1.5 seconds");
+    Serial.println(" try again in 1.5 seconds");
   }
-  return mqttClient.connected();
+  return mqttClient.connected(); // Return connection state
 }
+
 
 /*
   Checks if connection to the MQTT server is ok. Client connected
@@ -621,4 +623,8 @@ void loop() {
   //call on the background functions to allow them to do their thing.
   yield();
   ArduinoOTA.handle();
+
+  // Deal with millis rollover, hack by resetting the esp every 48 days
+  if (millis() > 4147200000)
+    ESP.restart();
 }

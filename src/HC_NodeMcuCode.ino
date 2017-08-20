@@ -407,47 +407,46 @@ void mqttPublishData(bool publishInstant) {
     }}}
 
 // Returns true if heating is required
-boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst) {
-  // Is room too cold ?
-  if (roomTemperature <= (targetTemperature - targetTempHyst))
-  {
-    return true;
-  } // Heat needed
-  else // Else room is hot enough
-  {
-    return false;
+boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst, bool poweredState) {
+  // Check if heating is active.
+  if (!poweredState) {
+    // Heating is not active. Room is cooling down
+    // Use Hyst to delay starting heating until we are passed the target to avoid over cycling the heater.
+    if (roomTemperature < (targetTemperature - targetTempHyst))
+      return true; // Heating is now needed
+    else // Else room is not cold enough
+      return false; // Heating not needed yet
   }
-} // No heat needed
+  else
+  {
+    // Heater is active. Room is heating up.
+    // Use Hyst to delay stopping heating until we are passed the target to avoid over cycling the heater.
+    if (roomTemperature > (targetTemperature + targetTempHyst))
+      return false; // Heating no longer needed
+    else // Else room is not hot enough
+      return true; // Heating is still needed
+  }
+}
 
 // Returns true if cooling is required
 boolean checkCoolRequired(float roomTemperature, float targetTemperature, float targetTempHyst, bool poweredState) {
-  // Is room too hot ?
-
   // Check if cooling is active.
-  if (!poweredState)
-  {
-    // Cooler is not active
-    // Room is warming up
+  if (!poweredState) {
+    // Cooler is not active. Room is warming up
     // Use Hyst to delay starting cooling until we are passed the target to avoid over cycling the cooler.
     if (roomTemperature > (targetTemperature + targetTempHyst))
-    {
-      return true; // Cooling needed
-    }
+      return true; // Cooling is now needed
     else // Else room is not warm enough
-    {
-      return false; // No cooling needed
-    }
-  }  else  {
-    // Cooler is active
+      return false; // Cooling not needed yet
+  }
+  else
+  {
+    // Cooler is active. Room is cooling down.
     // Use Hyst to delay stopping cooling until we are passed the target to avoid over cycling the cooler.
     if (roomTemperature < (targetTemperature - targetTempHyst))
-    {
-      return false; // No cooling needed
-    }
+      return false; // Cooling no longer needed
     else // Else room is not cold enough
-    {
-      return true; // Cooling needed
-    }
+      return true; // Cooling is still needed
   }
 }
 

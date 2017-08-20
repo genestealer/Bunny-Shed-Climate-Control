@@ -496,7 +496,7 @@ void checkState() {
   switch (stateMachine) {
     case s_idle:
       // State is currently: idle. Neather cooling or heating.
-      if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
+      if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst, false))
       {
         stateMachine = s_HeaterStart;    // Heat required, start.
       }
@@ -519,7 +519,7 @@ void checkState() {
       // State is currently: On
       // This inhibits the cooler turning on.
       // Check if we need to stop, by checking if heat is still required.
-      if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst))
+      if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst, true))
       {
         // Heat no longer required, stop.
         stateMachine = s_HeaterStop;

@@ -497,14 +497,9 @@ void checkState() {
     case s_idle:
       // State is currently: idle. Neather cooling or heating.
       if (checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst, false))
-      {
         stateMachine = s_HeaterStart;    // Heat required, start.
-      }
       else if (checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst, false))
-      {
         stateMachine = s_CoolerStart;    // Cooling required, start.
-      }
-
       break;
 
     case s_HeaterStart:
@@ -520,10 +515,7 @@ void checkState() {
       // This inhibits the cooler turning on.
       // Check if we need to stop, by checking if heat is still required.
       if (!checkHeatRequired(dht.readTemperature(), targetHeaterTemperature, targetHeaterTemperatureHyst, true))
-      {
-        // Heat no longer required, stop.
-        stateMachine = s_HeaterStop;
-      }
+        stateMachine = s_HeaterStop; // Heat no longer required, stop.
       break;
 
     case s_HeaterStop:
@@ -548,10 +540,7 @@ void checkState() {
       // This inhibits the heater turning on.
       // Check if we need to stop, by checking if cooling is still required.
       if (!checkCoolRequired(dht.readTemperature(), targetCoolerTemperature, targetCoolerTemperatureHyst, true))
-      {
-        // Cooling no longer required, stop.
-        stateMachine = s_CoolerStop;
-      }
+        stateMachine = s_CoolerStop; // Cooling no longer required, stop.
       break;
 
     case s_CoolerStop:
@@ -562,11 +551,7 @@ void checkState() {
       // Set state mahcine to idle on the next loop
       stateMachine = s_idle;
       break;
-
-  }
-}
-
-
+  }}
 
 void setup() {
   // Initialize pins

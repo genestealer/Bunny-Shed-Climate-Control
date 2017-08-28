@@ -94,7 +94,7 @@ const char* mqtt_server = secret_mqtt_server; // E.G. 192.168.1.xx
 const char* clientName = secret_clientName; // Client to report to MQTT
 const char* mqtt_username = secret_mqtt_username; // MQTT Username
 const char* mqtt_password = secret_mqtt_password; // MQTT Password
-boolean willRetain = true; // MQTT Last Will and Testament
+bool willRetain = true; // MQTT Last Will and Testament
 const char* willMessage = "offline"; // MQTT Last Will and Testament Message
 const int json_buffer_size = 256;
 
@@ -103,21 +103,7 @@ const char* subscribeSetHeaterTemperature = secret_subscribeSetHeaterTemperature
 const char* subscribeSetCoolerTemperature = secret_subscribeSetCoolerTemperature; //
 
 // Publish
-const char* publishHeaterOutputState = secret_publishHeaterOutputState; //
-const char* publishCoolerOutputState = secret_publishCoolerOutputState; //
-
-const char* publishSetHeaterTemperature = secret_publishSetHeaterTemperature; //
-const char* publishSetCoolerTemperature = secret_publishSetCoolerTemperature; //
-
-const char* publishTemperature = secret_publishTemperature; //
-const char* publishHumidity = secret_publishHumidity; //
-
 const char* publishLastWillTopic = secret_publishLastWillTopic; //
-const char* publishClientName = secret_publishClientName; // E.G. Home/Shed/clientName"
-const char* publishIpAddress = secret_publishIpAddress; // E.G. Home/Shed/IpAddress"
-const char* publishSignalStrength = secret_publishSignalStrength; // E.G. Home/Shed/SignalStrength"
-const char* publishHostName = secret_publishHostName; // E.G. Home/Shed/HostName"
-const char* publishSSID = secret_publishSSID; // E.G. Home/Shed/SSID"
 
 const char* publishSensorJsonTopic = secret_publishSensorJsonTopic;
 const char* publishStatusJsonTopic = secret_publishStatusJsonTopic;
@@ -294,7 +280,6 @@ boolean mqttReconnect() {
   yield();
   // Attempt to connect
   if (mqttClient.connect(clientName, mqtt_username, mqtt_password, publishLastWillTopic, 0, willRetain, willMessage)) {
-
     Serial.print("Attempting MQTT connection...");
     // Publish node state data
     publishNodeState();
@@ -342,17 +327,18 @@ void checkMqttConnection() {
   }
 }
 
-void mqttPublishData(bool publishInstant) {
-  // Only run when publishInterval in milliseonds exspires or publishInstant = true
+// MQTT Publish with normal or immediate option.
+void mqttPublishData(bool ignorePublishInterval) {
+  // Only run when publishInterval in milliseonds expires or ignorePublishInterval == true
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= publishInterval || publishInstant == true) {
-    previousMillis = currentMillis; // save the last time this ran
+  if (currentMillis - previousMillis >= publishInterval || ignorePublishInterval == true) {
+    previousMillis = currentMillis; // Save the last time this ran
     // Check conenction to MQTT server
     if (mqttClient.connected()) {
       // Publish node state data
       publishNodeState();
 
-      // New JSON data method
+      // JSON data method
       StaticJsonBuffer<json_buffer_size> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
       // INFO: the data must be converted into a string; a problem occurs when using floats...
@@ -372,38 +358,6 @@ void mqttPublishData(bool publishInstant) {
         Serial.print(F("JSON Sensor data published to [")), Serial.print(publishSensorJsonTopic), Serial.println("] ");
 
       Serial.println("JSON Sensor Published");
-
-      // Old legacy method
-      // Grab the current state of the sensor
-      String strTemp = String(dht.readTemperature()); //Could use String(dht.readTemperature()).c_str()) to do it all in one line
-      if (!mqttClient.publish(publishTemperature, String(dht.readTemperature()).c_str())) // Convert dht.readTemperature() to string object, then to char array.
-        Serial.print(F("Failed to published to [")), Serial.print(publishTemperature), Serial.print("] ");
-      else
-        Serial.print(F("Temperature published to [")), Serial.print(publishTemperature), Serial.println("] ");
-
-      String strHumi = String(dht.readHumidity());
-      if (!mqttClient.publish(publishHumidity, strHumi.c_str()))
-        Serial.print(F("Failed to humidity to [")), Serial.print(publishHumidity), Serial.print("] ");
-      else
-        Serial.print(F("Humidity published to [")), Serial.print(publishHumidity), Serial.println("] ");
-
-      String strSetpoint = String(targetHeaterTemperature);
-      if (!mqttClient.publish(publishSetHeaterTemperature, strSetpoint.c_str(), true)) // retained = true
-        Serial.print(F("Failed to target temperature to [")), Serial.print(publishSetHeaterTemperature), Serial.print("] ");
-      else
-        Serial.print(F("Target temperature published to [")), Serial.print(publishSetHeaterTemperature), Serial.println("] ");
-
-      String strHeaterOutput = String(outputHeaterPoweredStatus);
-      if (!mqttClient.publish(publishHeaterOutputState, strHeaterOutput.c_str()))
-        Serial.print(F("Failed to output heater state to [")), Serial.print(publishHeaterOutputState), Serial.print("] ");
-      else
-        Serial.print(F("Output heater state published to [")), Serial.print(publishHeaterOutputState), Serial.println("] ");
-
-      String strCoolerOutput = String(outputCoolerPoweredStatus);
-      if (!mqttClient.publish(publishCoolerOutputState, strCoolerOutput.c_str()))
-        Serial.print(F("Failed to output cooler state to [")), Serial.print(publishCoolerOutputState), Serial.print("] ");
-      else
-        Serial.print(F("Output cooler state published to [")), Serial.print(publishCoolerOutputState), Serial.println("] ");
     }}}
 
 // Returns true if heating is required
@@ -605,7 +559,7 @@ void loop() {
   // Check the status and do actions
   checkState();
   // Publish MQTT
-  mqttPublishData(false);
+  mqttPublishData(false); // Normal publish cycle
   //Call on the background functions to allow them to do their thing.
   yield();
   // Check for Over The Air updates

@@ -197,50 +197,7 @@ void setup_OTA() {
   ArduinoOTA.begin();
 }
 
-// MQTT payload
-void mqttcallback(char* topic, byte* payload, unsigned int length) {
-  //If you want to publish a message from within the message callback function, it is necessary to make a copy of the topic and payload values as the client uses the same internal buffer for inbound and outbound messages:
-  //http://www.hivemq.com/blog/mqtt-client-library-encyclopedia-arduino-pubsubclient/
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
 
-
-  // create character buffer with ending null terminator (string)
-  int i = 0;
-  for (i = 0; i < length; i++) {
-    message_buff[i] = payload[i];
-  }
-  message_buff[i] = '\0';
-  // Check the value of the message
-  String msgString = String(message_buff);
-  Serial.println(msgString);
-
-  // Check the message topic
-  String srtTopic = topic;
-  //String strTopicCompairSetpoint = subscribeSetHeaterTemperature;
-
-  if (srtTopic.equals(subscribeSetHeaterTemperature))
-  {
-    if (targetHeaterTemperature != msgString.toFloat())
-    {
-      Serial.println("new heater setpoint");
-      targetHeaterTemperature = msgString.toFloat();
-    }
-  }
-  else if (srtTopic.equals(subscribeSetCoolerTemperature))
-  {
-    if (targetCoolerTemperature != msgString.toFloat())
-    {
-      Serial.println("new cooler setpoint");
-      targetCoolerTemperature = msgString.toFloat();
-    }
-  }
-}
 
 void publishNodeState() {
   // Update status to online, retained = true - last will Message will drop in if we go offline
@@ -359,6 +316,56 @@ void mqttPublishData(bool ignorePublishInterval) {
 
       Serial.println("JSON Sensor Published");
     }}}
+
+
+    // MQTT payload
+    void mqttcallback(char* topic, byte* payload, unsigned int length) {
+      //If you want to publish a message from within the message callback function, it is necessary to make a copy of the topic and payload values as the client uses the same internal buffer for inbound and outbound messages:
+      //http://www.hivemq.com/blog/mqtt-client-library-encyclopedia-arduino-pubsubclient/
+      Serial.print("Message arrived [");
+      Serial.print(topic);
+      Serial.print("] ");
+      for (int i = 0; i < length; i++) {
+        Serial.print((char)payload[i]);
+      }
+      Serial.println();
+
+
+      // create character buffer with ending null terminator (string)
+      int i = 0;
+      for (i = 0; i < length; i++) {
+        message_buff[i] = payload[i];
+      }
+      message_buff[i] = '\0';
+      // Check the value of the message
+      String msgString = String(message_buff);
+      Serial.println(msgString);
+
+      // Check the message topic
+      String srtTopic = topic;
+      //String strTopicCompairSetpoint = subscribeSetHeaterTemperature;
+
+      if (srtTopic.equals(subscribeSetHeaterTemperature))
+      {
+        if (targetHeaterTemperature != msgString.toFloat())
+        {
+          Serial.println("new heater setpoint");
+          targetHeaterTemperature = msgString.toFloat();
+          // Publish new setpoint change, instantly without waiting for publishInterval.
+          mqttPublishData(true);
+        }
+      }
+      else if (srtTopic.equals(subscribeSetCoolerTemperature))
+      {
+        if (targetCoolerTemperature != msgString.toFloat())
+        {
+          Serial.println("new cooler setpoint");
+          targetCoolerTemperature = msgString.toFloat();
+          // Publish new setpoint change, instantly without waiting for publishInterval.
+          mqttPublishData(true);
+        }
+      }
+    }
 
 // Returns true if heating is required
 boolean checkHeatRequired(float roomTemperature, float targetTemperature, float targetTempHyst, bool poweredState) {

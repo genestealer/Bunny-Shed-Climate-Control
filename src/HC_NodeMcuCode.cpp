@@ -90,7 +90,7 @@ const char* publishSensorJsonTopic = secret_publishSensorJsonTopic;
 const char* publishStatusJsonTopic = secret_publishStatusJsonTopic;
 // MQTT publish frequency
 unsigned long previousMillis = 0;
-const long publishInterval = 6000; // Publish requency in milliseconds 60000 = 1 min
+const long publishInterval = 60000; // Publish requency in milliseconds 60000 = 1 min
 
 // LED output parameters
 const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual

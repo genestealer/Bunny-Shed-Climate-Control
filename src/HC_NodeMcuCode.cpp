@@ -59,6 +59,43 @@
 #include <ArduinoOTA.h>      // Needed for Over-the-Air ESP8266 programming https://github.com/esp8266/Arduino
 #include <ArduinoJson.h>     // For sending MQTT JSON messages https://bblanchon.github.io/ArduinoJson/
 
+// WiFi parameters
+const char* wifi_ssid = secret_wifi_ssid; // Wifi access point SSID
+const char* wifi_password = secret_wifi_password; // Wifi access point password
+int noWifiConnectionCount = 0;
+const int noWifiConnectionCountLimit = 5;
+int noWifiConnectionCountRebootCount = 0;
+const int noWifiConnectionCountRebootLimit = 5;
+
+// MQTT Settings
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+char message_buff[100];
+long lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github.com/knolleary/pubsubclient/blob/master/examples/mqtt_reconnect_nonblocking/mqtt_reconnect_nonblocking.ino
+const char* mqtt_server = secret_mqtt_server; // E.G. 192.168.1.xx
+const char* clientName = secret_clientName; // Client to report to MQTT
+const char* mqtt_username = secret_mqtt_username; // MQTT Username
+const char* mqtt_password = secret_mqtt_password; // MQTT Password
+bool willRetain = true; // MQTT Last Will and Testament
+const char* willMessage = "offline"; // MQTT Last Will and Testament Message
+const int json_buffer_size = 256;
+int noMqttConnectionCount = 0;
+const int noMqttConnectionCountLimit = 5;
+// MQTT Subscribe
+const char* subscribeSetHeaterTemperature = secret_subscribeSetHeaterTemperature; //
+const char* subscribeSetCoolerTemperature = secret_subscribeSetCoolerTemperature; //
+// MQTT Publish
+const char* publishLastWillTopic = secret_publishLastWillTopic; //
+const char* publishSensorJsonTopic = secret_publishSensorJsonTopic;
+const char* publishStatusJsonTopic = secret_publishStatusJsonTopic;
+// MQTT publish frequency
+unsigned long previousMillis = 0;
+const long publishInterval = 6000; // Publish requency in milliseconds 60000 = 1 min
+
+// LED output parameters
+const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
+const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
+
 // Define state machine states
 typedef enum {
   s_idle = 0,         // state idle
@@ -74,93 +111,80 @@ int stateMachine = 0;
 // DHT sensor parameters
 #define DHTPIN 5 // GPIO pin 5 (NodeMCU Pin D1)
 #define DHTTYPE DHT22
-
 // DHT sensor instance
 DHT dht(DHTPIN, DHTTYPE, 15);
 
-// WiFi parameters
-const char* wifi_ssid = secret_wifi_ssid; // Wifi access point SSID
-const char* wifi_password = secret_wifi_password; // Wifi access point password
-
+// 433MHZ TX instance
+RCSwitch mySwitch = RCSwitch();
 // 433Mhz transmitter parameters
 const int tx433Mhz_pin = 2; // GPIO pin 2 (NODEMCU Pin D4)
 const int setPulseLength = 305;
-
-// 433MHZ TX instance
-RCSwitch mySwitch = RCSwitch();
-
-// MQTT Settings
-const char* mqtt_server = secret_mqtt_server; // E.G. 192.168.1.xx
-const char* clientName = secret_clientName; // Client to report to MQTT
-const char* mqtt_username = secret_mqtt_username; // MQTT Username
-const char* mqtt_password = secret_mqtt_password; // MQTT Password
-bool willRetain = true; // MQTT Last Will and Testament
-const char* willMessage = "offline"; // MQTT Last Will and Testament Message
-const int json_buffer_size = 256;
-
-// Subscribe
-const char* subscribeSetHeaterTemperature = secret_subscribeSetHeaterTemperature; //
-const char* subscribeSetCoolerTemperature = secret_subscribeSetCoolerTemperature; //
-
-// Publish
-const char* publishLastWillTopic = secret_publishLastWillTopic; //
-
-const char* publishSensorJsonTopic = secret_publishSensorJsonTopic;
-const char* publishStatusJsonTopic = secret_publishStatusJsonTopic;
-
-// MQTT instance
-WiFiClient espClient;
-PubSubClient mqttClient(espClient);
-char message_buff[100];
-long lastReconnectAttempt = 0; // Reconnecting MQTT - non-blocking https://github.com/knolleary/pubsubclient/blob/master/examples/mqtt_reconnect_nonblocking/mqtt_reconnect_nonblocking.ino
-
-// MQTT publish frequency
-unsigned long previousMillis = 0;
-const long publishInterval = 60000; // Publish requency in milliseconds 60000 = 1 min
-
-// LED output parameters
-const int DIGITAL_PIN_LED_ESP = 2; // Define LED on ESP8266 sub-modual
-const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights on pin LOW
 
 // Climate parameters
 // Target temperatures (Set in code, but modified by web commands, local setpoint in case of internet connection break)
 float targetHeaterTemperature = 8;
 float targetCoolerTemperature = 25;
-
 // Target temperature Hysteresis
 const float targetHeaterTemperatureHyst = 1; // DHT22 has 0.5 accuracy
 const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy
-
 // Output powered status
 bool outputHeaterPoweredStatus = false;
 bool outputCoolerPoweredStatus = false;
 
-// Setp the connection to WIFI and the MQTT Broker. Normally called only once from setup
+// Setp the connection to WIFI. Normally called only once from setup
 void setup_wifi() {
   /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
      would try to act as both a client and an access-point and could cause
      network-issues with your other WiFi-devices on your WiFi-network. */
   WiFi.mode(WIFI_STA);
-
   // Connect to the WiFi network
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.print(wifi_ssid);
+  Serial.println("Connecting to " + String(wifi_ssid) + "...");
   WiFi.begin(wifi_ssid, wifi_password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(250);
-    Serial.print(".");
+  while ((WiFi.status() != WL_CONNECTED) && (noWifiConnectionCount < noWifiConnectionCountLimit)) {
+    delay(500);
+    noWifiConnectionCount = ++noWifiConnectionCount; //Increment the counter
+    Serial.print("Wifi connection attempt number: ");
+    Serial.println(noWifiConnectionCount);
   }
-  Serial.print("");
-  Serial.println("WiFi connected");
+  if (WiFi.status() != WL_CONNECTED) {
+    // If no wifi, fall-back to local mode with pre-set values.
+    Serial.println("WiFi not connected. Running in Local Mode!");
+  } else {
+    Serial.print("");
+    Serial.println("WiFi connected");
+    Serial.printf("RSSI: %d dBm\n", WiFi.RSSI());
+    Serial.print("Connected, IP address: ");
+    Serial.println(WiFi.localIP());
+    Serial.printf("Hostname: %s\n", WiFi.hostname().c_str());
 
-  Serial.printf("RSSI: %d dBm\n", WiFi.RSSI());
-  Serial.print("Connected, IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.printf("Hostname: %s\n", WiFi.hostname().c_str());
-
-  digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.
+    digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.
+  }
 }
+
+// If disconnected from Wifi, and attempt reconnection.
+// Code source: https://github.com/alukach/Amazon-Alexa-RF-Outlets-Integration/blob/master/wemos.ino
+bool reconnectWifi() {
+   Serial.println("Disconnected; Attempting reconnect to " + String(wifi_ssid) + "...");
+    WiFi.disconnect();
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(wifi_ssid, wifi_password);
+    // Output reconnection status info every second over the next 10 sec
+    for( int i = 0; i < 10 ; i++ )  {
+      delay(500);
+      Serial.print("WiFi status = ");
+      if( WiFi.status() == WL_CONNECTED ) {
+        Serial.println("Connected");
+        return true;
+      } else {
+        Serial.println("Disconnected");
+      }
+    }
+    if(WiFi.status() != WL_CONNECTED) {
+       Serial.println("Failure to establish connection after 10 sec. Returning to Local Mode");
+       return false;
+      }
+}
+
 
 // Setup Over-the-Air programming, called from the setup.
 // https://www.penninkhof.com/2015/12/1610-over-the-air-esp8266-programming-using-platformio/
@@ -244,12 +268,10 @@ boolean mqttReconnect() {
     mqttClient.subscribe(subscribeSetHeaterTemperature);
     mqttClient.subscribe(subscribeSetCoolerTemperature);
     Serial.println("Connected to MQTT server");
-  }
-  else
-  {
+  } else {
     Serial.print("Failed MQTT connection, rc=");
     Serial.print(mqttClient.state());
-    Serial.println(" try again in 1.5 seconds");
+    Serial.println(" try again in 5 seconds");
   }
   return mqttClient.connected(); // Return connection state
 }
@@ -260,6 +282,8 @@ boolean mqttReconnect() {
   its connection, it attempts to reconnect every 5 seconds
   without blocking the main loop.
   Called from main loop.
+  If MQTT connection fails after x attempts it tries to reconnect wifi
+  If wifi connections fails after x attempts it reboots the esp
 */
 void checkMqttConnection() {
   if (!mqttClient.connected()) {
@@ -270,12 +294,36 @@ void checkMqttConnection() {
       lastReconnectAttempt = now;
       // Attempt to reconnect
       if (mqttReconnect()) {
+        // We are connected.
         lastReconnectAttempt = 0;
+        noMqttConnectionCount = 0;
+        noWifiConnectionCountRebootCount = 0;
+        digitalWrite(DIGITAL_PIN_LED_ESP, LOW); // Lights on LOW
+      } else  {
+        // Connection to MQTT failed.
+        // If no connection after x attempts, then reconnect wifi, if no connection after x attempts reboot.
+        noMqttConnectionCount = ++noMqttConnectionCount; //Increment the counter
+        Serial.println("MQTT connection attempt number: " + String(noMqttConnectionCount));
+        if (noMqttConnectionCount > noMqttConnectionCountLimit) {
+          // Max MQTT connection attempts reached, reconnect wifi.
+          noMqttConnectionCount = 0; // Reset MQTT connection attempt counter.
+          Serial.println("MQTT connection count limit reached, reconnecting wifi");
+          // Try to reconnect wifi, if this fails after x attemps then reboot.
+          if (!reconnectWifi()) {
+            noWifiConnectionCountRebootCount = ++noWifiConnectionCountRebootCount;
+            Serial.println("Wifi connection attempt number: " + String(noWifiConnectionCountRebootCount));
+            if (noWifiConnectionCountRebootCount > noWifiConnectionCountRebootLimit) {
+              Serial.println("Wifi re-connection count limit reached, reboot esp");
+              // Reboot ESP
+              ESP.restart();
+            }
+          }
+        }
       }
+
+
     }
   } else {
-    // We are connected.
-    digitalWrite(DIGITAL_PIN_LED_ESP, LOW); // Lights on LOW
     //Call on the background functions to allow them to do their thing.
     yield();
     // Client connected: MQTT client loop processing

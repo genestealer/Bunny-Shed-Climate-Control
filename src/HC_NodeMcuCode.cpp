@@ -125,8 +125,8 @@ const int setPulseLength = 305;
 float targetHeaterTemperature = 8;
 float targetCoolerTemperature = 25;
 // Target temperature Hysteresis
-const float targetHeaterTemperatureHyst = 1; // DHT22 has 0.5 accuracy
-const float targetCoolerTemperatureHyst = 1; // DHT22 has 0.5 accuracy
+const float targetHeaterTemperatureHyst = 0.5; // DHT22 has 0.5 accuracy
+const float targetCoolerTemperatureHyst = 0.5; // DHT22 has 0.5 accuracy
 // Output powered status
 bool outputHeaterPoweredStatus = false;
 bool outputCoolerPoweredStatus = false;
@@ -150,11 +150,10 @@ void setup_wifi() {
     // If no wifi, fall-back to local mode with pre-set values.
     Serial.println("WiFi not connected. Running in Local Mode!");
   } else {
-    Serial.print("");
     Serial.println("WiFi connected");
+
     Serial.printf("RSSI: %d dBm\n", WiFi.RSSI());
-    Serial.print("Connected, IP address: ");
-    Serial.println(WiFi.localIP());
+    Serial.println("IP address: " + String(WiFi.localIP()));
     Serial.printf("Hostname: %s\n", WiFi.hostname().c_str());
 
     digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.
@@ -246,9 +245,9 @@ void publishNodeState() {
   char data[json_buffer_size];
   root.printTo(data, root.measureLength() + 1);
   if (!mqttClient.publish(publishStatusJsonTopic, data, true)) // retained = true
-    Serial.print(F("Failed to publish JSON Status to [")), Serial.print(publishStatusJsonTopic), Serial.print("] ");
+    Serial.println("Failed to publish JSON Status to [" + String(publishStatusJsonTopic) + "]");
   else
-    Serial.print(F("JSON Status Published [")), Serial.print(publishStatusJsonTopic), Serial.println("] ");
+    Serial.println("JSON Status Published [" + String(publishStatusJsonTopic) + "]");
 }
 
 /*
@@ -269,9 +268,7 @@ boolean mqttReconnect() {
     mqttClient.subscribe(subscribeSetCoolerTemperature);
     Serial.println("Connected to MQTT server");
   } else {
-    Serial.print("Failed MQTT connection, rc=");
-    Serial.print(mqttClient.state());
-    Serial.println(" try again in 5 seconds");
+    Serial.println("Failed MQTT connection, rc=" + String(publishStatusJsonTopic) + "] ");
   }
   return mqttClient.connected(); // Return connection state
 }
@@ -358,9 +355,9 @@ void mqttPublishData(bool ignorePublishInterval) {
       char data[json_buffer_size];
       root.printTo(data, root.measureLength() + 1);
       if (!mqttClient.publish(publishSensorJsonTopic, data))
-        Serial.print(F("Failed to publish JSON sensor data to [")), Serial.print(publishSensorJsonTopic), Serial.print("] ");
+        Serial.println("Failed to publish JSON sensor data to [" + String(publishSensorJsonTopic) + "]");
       else
-        Serial.print(F("JSON Sensor data published to [")), Serial.print(publishSensorJsonTopic), Serial.println("] ");
+        Serial.println("JSON Sensor data published to [" + String(publishSensorJsonTopic) + "] ");
       Serial.println("JSON Sensor Published");
     }
   }
@@ -422,7 +419,7 @@ boolean checkHeatRequired(float roomTemperature, float targetTemperature, float 
   if (!poweredState) {
     // Heating is not active. Room is cooling down
     // Use Hyst to delay starting heating until we are passed the target to avoid over cycling the heater.
-    if (roomTemperature < (targetTemperature - targetTempHyst))
+    if (roomTemperature <= (targetTemperature - targetTempHyst))
       return true; // Heating is now needed
     else // Else room is not cold enough
       return false; // Heating not needed yet
@@ -431,7 +428,7 @@ boolean checkHeatRequired(float roomTemperature, float targetTemperature, float 
   {
     // Heater is active. Room is heating up.
     // Use Hyst to delay stopping heating until we are passed the target to avoid over cycling the heater.
-    if (roomTemperature > (targetTemperature + targetTempHyst))
+    if (roomTemperature >= (targetTemperature + targetTempHyst))
       return false; // Heating no longer needed
     else // Else room is not hot enough
       return true; // Heating is still needed

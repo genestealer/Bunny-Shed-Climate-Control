@@ -98,7 +98,7 @@ const int DIGITAL_PIN_LED_NODEMCU = 16; // Define LED on NodeMCU board - Lights 
 
 // Idle transmit timers
 unsigned long previousIdleMillis = 0;
-const long idleInterval = 10000; // Idle wait in milliseconds 60000 = 1 min
+const long idleInterval = 600000; // Idle wait in milliseconds 600000 = 10 min
 
 // Define state machine states
 typedef enum {

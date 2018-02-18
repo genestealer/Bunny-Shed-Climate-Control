@@ -81,7 +81,7 @@ https://github.com/Genestealer/Home-Assistant-Configuration
   
     build_flags = -DMQTT_MAX_PACKET_SIZE=512
     
-  Overide max JSON size, until libary is updated to inclde this option https://github.com/knolleary/pubsubclient/issues/110#issuecomment-174953049    
+  Overide max JSON size, until libary is updated to include this option https://github.com/knolleary/pubsubclient/issues/110#issuecomment-174953049    
 
 ---------- 
 

@@ -157,7 +157,7 @@ void setup_wifi() {
     Serial.println("WiFi connected");
 
     Serial.printf("RSSI: %d dBm\n", WiFi.RSSI());
-    Serial.println("IP address: " + String(WiFi.localIP()));
+    Serial.println("IP address: " + WiFi.localIP());
     Serial.printf("Hostname: %s\n", WiFi.hostname().c_str());
 
     digitalWrite(DIGITAL_PIN_LED_NODEMCU, LOW); // Lights on LOW. Light the NodeMCU LED to show wifi connection.

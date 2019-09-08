@@ -16,7 +16,7 @@
   ESP8266mDNS.h     https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266mDNS
   WiFiUdp.h         https://github.com/esp8266/Arduino
   ArduinoOTA.h      https://github.com/esp8266/Arduino
-  ArduinoJson.h     https://bblanchon.github.io/ArduinoJson/
+  ArduinoJson.h     https://bblanchon.github.io/ArduinoJson/ BUT ONLY UP TO VERSION 5!
   ----------
   GUI: Locally hosted home assistant
   MQTT: Locally hosted broker https://mosquitto.org/

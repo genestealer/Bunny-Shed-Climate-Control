@@ -94,3 +94,5 @@ https://github.com/Genestealer/Home-Assistant-Configuration
    - [Example remote control sockets](https://www.amazon.co.uk/Status-Remote-Control-Socket-Pack/dp/B003XOXAVG)
   
 ![alt text](Bunny-Shed-Heating-Controller.jpg "A photo of my setup")    
+![alt text](New%20case%20for%20controller.JPG "A photo of my setup2")    
+
